@@ -10,7 +10,7 @@
 #include <time.h>
 #include "potato.h"
 
-void create_master_to_players_fifo(int players, char ** pipename1){
+void create_master_to_players_fifo(int players, char ** master_pn, char ** pn_master){
   //create fifo
 
   for(int i = 0; i < players; i++){
@@ -18,28 +18,31 @@ void create_master_to_players_fifo(int players, char ** pipename1){
     snprintf(name, sizeof(name), "master_p%d", i);
     char path[30] = "/tmp/";
     strcat(path, name);
-    unlink(path);
-    pipename1[i] = malloc(30 * sizeof(*pipename1[i]));
-    strcpy(pipename1[i], path);
+    master_pn[i] = malloc(30 * sizeof(*master_pn[i]));
+    strcpy(master_pn[i], path);
     //make a fifo
     if(mkfifo(path, S_IRUSR | S_IWUSR) != 0){
       perror("mkfifo() error");
     }
     //printf("%s\n", name);
-
+  }
+  for(int i = 0; i < players; i++){
+    char name[20];
     snprintf(name, sizeof(name), "p%d_master", i);
-    char path2[30] = "/tmp/";
-    strcat(path2, name);
-    unlink(path2);
-    if(mkfifo(path2, S_IRUSR | S_IWUSR) != 0){
+    char path[30] = "/tmp/";
+    strcat(path, name);
+    pn_master[i] = malloc(30 * sizeof(*pn_master[i]));
+    strcpy(pn_master[i], path);
+    //make a fifo
+    if(mkfifo(path, S_IRUSR | S_IWUSR) != 0){
       perror("mkfifo() error");
     }
     //printf("%s\n", name);
   }
-
 }
 
-void create_players_to_players_fifo(int players){
+void create_players_to_players_fifo(int players, char ** pn_pn){
+  int count = 0;
   for(int i = 0; i < players; i++){
     int a = i-1;
     for(int j = 0; j < 2; j++){
@@ -53,8 +56,10 @@ void create_players_to_players_fifo(int players){
       snprintf(name, sizeof(name), "p%d_p%d", i, a);
       //printf("%s\n", name);
       char path[30] = "/tmp/";
-      strcat(path, name);
-      unlink(path);
+      strcat(path, name);      
+      pn_pn[count] = malloc(30 * sizeof(*pn_pn[count]));
+      strcpy(pn_pn[count], path);
+      count++;
       if(mkfifo(path, S_IRUSR | S_IWUSR) != 0){
 	perror("mkfifo() error");
       }
@@ -79,18 +84,26 @@ int main(int argc, char *argv[]){
     return EXIT_FAILURE;
   }
 
-  char ** pipename1 = malloc((2*players) * sizeof(*pipename1));
+  char ** master_pn = malloc((players) * sizeof(*master_pn));
+  char ** pn_master = malloc((players) * sizeof(*pn_master));
+  char ** pn_pn = malloc((2 * players) * sizeof(*pn_pn));
   
-  
-  create_master_to_players_fifo(players, pipename1);
-  create_players_to_players_fifo(players);
-  for(int i = 0; i < players; i++){
-    printf("%s\n", pipename1[i]);
+  create_master_to_players_fifo(players, master_pn, pn_master);
+  create_players_to_players_fifo(players, pn_pn);
+
+  for(int i = 0; i < 2*players; i++){
+    printf("%s\n", pn_pn[i]);
   }
 
   //open fifo
   int fdwrite[players];
   int fdread[players];
+  for(int i = 0; i < players; i++){
+    fdwrite[i] = open(master_pn[i], O_WRONLY);
+    fdread[i] = open(pn_master[i], O_RDONLY);
+    //add error checking
+  }
+  /*
   for(int i = 0; i < players; i++){
     char name[20];
     snprintf(name, sizeof(name), "master_p%d", i);
@@ -103,7 +116,7 @@ int main(int argc, char *argv[]){
     strcat(path2, name);
     fdread[i] = open(path2, O_RDONLY);
   }
-
+  */
 
   POTATO_T * potato;
   POTATO_T p;
@@ -124,6 +137,14 @@ int main(int argc, char *argv[]){
     printf("pass potato success\n");
   }
   
+  for(int i = 0; i < players; i++){
+    unlink(master_pn[i]);
+    unlink(pn_master[i]);
+  }
+  for(int i = 0; i < 2*players; i++){
+    unlink(pn_pn[i]);
+  }
+
   
   return EXIT_SUCCESS;
   
