@@ -28,41 +28,48 @@ int open_player_master_fifo(int id){
   int p_master = open(path2, O_WRONLY);
   return p_master;
 }
-/*
+
+int open_leftright_player(int a, int b, int w_r){
+  int p_p;
+  char path[30];
+  snprintf(path, sizeof(path), "/tmp/p%d_p%d", a, b);
+  if(w_r == 0){
+    if((p_p = open(path, O_WRONLY)) == -1){
+      perror("open()");
+    }
+  }
+  else{
+    if((p_p = open(path, O_RDONLY)) == -1){
+      perror("open()");
+    }
+  }
+  return p_p;
+}
+  
 void open_player_player_fifo(int id, int players, int * p_p){
   int count = 0;
   int a = id;
   int b = id + 1;
   if(b == players){
+    b = id - 1;
+    p_p[3] = open_leftright_player(b, a, 1);//1 means RD
+    p_p[2] = open_leftright_player(a, b, 0);//0 means WR
     b = 0;
+    p_p[0] = open_leftright_player(a, b, 0);//0 means WR
+    p_p[1] = open_leftright_player(b, a, 1);//1 means RD
   }
-  for(int i = 0; i < 2; i++){
-    char name[20];
-    snprintf(name, sizeof(name), "p%d_p%d", a, b);
-    char path[30] = "/tmp/";
-    strcat(path, name);
-    printf("2:%s\n", path);
-    if((p_p[count] = open(path, O_WRONLY)) == -1){
-      perror("open()");
-    }
-    else{
-      printf("open%d%d\n", a, b);
-    }
-    count++;
-
-    snprintf(name, sizeof(name), "p%d_p%d", b, a);
-    char path2[30] = "/tmp/";
-    strcat(path2, name);
-    p_p[count] = open(path2, O_RDONLY);
-    printf("open%d%d\n", a, b);
-    count++;
+  else{
+    p_p[0] = open_leftright_player(a, b, 0);//0 means WR
+    p_p[1] = open_leftright_player(b, a, 1);//1 means RD
     b = id - 1;
     if(b < 0){
       b = players - 1;
     }
+    p_p[3] = open_leftright_player(b, a, 1);//1 means RD
+    p_p[2] = open_leftright_player(a, b, 0);//0 means WR
   }
 }
-*/
+
 void send_init_to_master(int id, int p_master){
   int ready[1];
   ready[0] = id;
@@ -84,7 +91,7 @@ int main(int argc, char *argv[]){
   
   int master_p = open_master_player_fifo(id);
   int p_master = open_player_master_fifo(id);
-  //  int * p_p = malloc(4 * sizeof(*p_p));
+  int * p_p = malloc(4 * sizeof(*p_p));
   
   
   int players;
@@ -103,6 +110,7 @@ int main(int argc, char *argv[]){
 	perror("read()");
       }
       else{
+	open_player_player_fifo(id, players, p_p);
 	printf("Connected as player %d out of %d total players\n", id, players);
 	send_init_to_master(id, p_master);
 
@@ -110,11 +118,36 @@ int main(int argc, char *argv[]){
     }
   }
   /*
-  open_player_player_fifo(id, players, p_p);
-  for(int i = 0; i < players; i++){
-    printf("p_p%d\n", p_p[i]);
+  if(id == 0){
+  char name[20];
+  snprintf(name, sizeof(name), "p%d_p%d", id, id+1);
+  char path[30] = "/tmp/";
+  strcat(path, name);
+  printf("2:%s\n", path);
+  if(open(path, O_WRONLY) == -1){
+    perror("open()");
+  }
+  else{
+    printf("open%d%d\n", id, id+1);
+  }
+  }
+  if(id == 1){
+  char name[20];
+  snprintf(name, sizeof(name), "p%d_p%d", id-1, id);
+  char path[30] = "/tmp/";
+  strcat(path, name);
+  printf("2:%s\n", path);
+  if(open(path, O_RDONLY) == -1){
+    perror("open()");
+  }
+  else{
+    printf("open%d%d\n", id-1, id);
+  }
   }
   */
+  
+  
+  
   
 
   /*    
