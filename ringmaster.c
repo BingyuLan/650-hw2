@@ -128,32 +128,32 @@ int main(int argc, char *argv[]){
   int retval;
   int count = 0;
   do{
-  fd_set rfds;
-  FD_ZERO(&rfds);
-  for(int i = 0; i < players; i++){
-    FD_SET(fdread[i], &rfds);
-  }
-  //  int retval;
-  retval = select(fdread[players-1]+1, &rfds, NULL, NULL, NULL);
-  if(retval == -1){
-    perror("select()");
-  }
-  else if(retval){
+    fd_set rfds;
+    FD_ZERO(&rfds);
     for(int i = 0; i < players; i++){
-      if(FD_ISSET(fdread[i], &rfds)){
-	if(read(fdread[i], ready, sizeof(*ready)) == sizeof(*ready)){
-	  printf("Player %d is ready to play\n", ready[0]);
-	  count++;
+      FD_SET(fdread[i], &rfds);
+    }
+    //  int retval;
+    retval = select(fdread[players-1]+1, &rfds, NULL, NULL, NULL);
+    if(retval == -1){
+      perror("select()");
+    }
+    else if(retval){
+      for(int i = 0; i < players; i++){
+	if(FD_ISSET(fdread[i], &rfds)){
+	  if(read(fdread[i], ready, sizeof(*ready)) == sizeof(*ready)){
+	    printf("Player %d is ready to play\n", ready[0]);
+	    count++;
+	  }
 	}
       }
     }
-  }
-  if(count == players){
-    break;
-  }
+    if(count == players){
+      break;
+    }
   }while(retval);
   
-  /*  
+    
   POTATO_T * potato;
   POTATO_T p;
   potato = &p;
@@ -172,7 +172,7 @@ int main(int argc, char *argv[]){
   else{
     printf("pass potato success\n");
   }
-  */
+  
   for(int i = 0; i < players; i++){
     unlink(master_pn[i]);
     unlink(pn_master[i]);
