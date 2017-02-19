@@ -69,6 +69,51 @@ void create_players_to_players_fifo(int players, char ** pn_pn){
 
 }
 
+void wait_for_end(int * fdread, int players){
+  POTATO_T * potato;
+  POTATO_T p;
+  potato = &p;
+  int loop = 1;
+  int retval;
+  do{
+    fd_set rfds;
+    FD_ZERO(&rfds);
+    for(int i = 0; i < players; i++){
+      FD_SET(fdread[i], &rfds);
+    }
+    retval = select(fdread[players-1]+1, &rfds, NULL, NULL, NULL);
+    if(retval == -1){
+      perror("select()");
+    }
+    else if(retval){
+      for(int i = 0; i < players; i++){
+	if(FD_ISSET(fdread[i], &rfds)){
+	  if(read(fdread[i], potato, sizeof(*potato)) == sizeof(*potato)){
+	    printf("Trace of potato:\n");
+	    for(int i = 0; i < potato->total_hops; i++){
+	      printf("%lu,\n", potato->hop_trace[i]);
+	    }
+	    loop = 0;
+	  }
+	}
+      }
+    }
+  }while(loop);  
+  return;
+}
+
+void send_end_signal(int * fdwrite, int players){
+  POTATO_T * potato;
+  POTATO_T p;
+  potato = &p;
+  potato->msg_type = 1; //1 means end of game
+  for(int i = 0; i < players; i++){
+    if(write(fdwrite[i], potato, sizeof(*potato)) != sizeof(*potato)){
+      fprintf(stderr, "write to file error\n");
+    }      
+  }
+  return;
+}
 
 int main(int argc, char *argv[]){
   //  exit(0);
@@ -88,11 +133,11 @@ int main(int argc, char *argv[]){
   char ** master_pn = malloc((players) * sizeof(*master_pn));
   char ** pn_master = malloc((players) * sizeof(*pn_master));
   char ** pn_pn = malloc((2 * players) * sizeof(*pn_pn));
-  
+  //create fifos  
   create_master_to_players_fifo(players, master_pn, pn_master);
   create_players_to_players_fifo(players, pn_pn);
 
-  //open fifo
+  //open fifos
   int fdwrite[players];
   int fdread[players];
   
@@ -101,21 +146,8 @@ int main(int argc, char *argv[]){
     fdread[i] = open(pn_master[i], O_RDONLY);
     //add error checking
   }
-  /*
-  for(int i = 0; i < players; i++){
-    char name[20];
-    snprintf(name, sizeof(name), "master_p%d", i);
-    char path[30] = "/tmp/";
-    strcat(path, name);
-    fdwrite[i] = open(path, O_WRONLY);
-    //add error checking
-    snprintf(name, sizeof(name), "p%d_master", i);
-    char path2[30] = "/tmp/";
-    strcat(path2, name);
-    fdread[i] = open(path2, O_RDONLY);
-  }
-  */
-  
+
+  //send init msg to players
   int * playerpointer = & players;
   for(int i = 0; i < players; i++){
     if(write(fdwrite[i], playerpointer, sizeof(*playerpointer)) != sizeof(*playerpointer)){
@@ -123,7 +155,8 @@ int main(int argc, char *argv[]){
       return EXIT_FAILURE;
     }      
   }
-
+  
+  //wait for players to be ready
   int ready[1];
   int retval;
   int count = 0;
@@ -153,7 +186,7 @@ int main(int argc, char *argv[]){
     }
   }while(retval);
   
-    
+  //send out potato
   POTATO_T * potato;
   POTATO_T p;
   potato = &p;
@@ -172,6 +205,12 @@ int main(int argc, char *argv[]){
   else{
     printf("pass potato success\n");
   }
+
+  //wait for end
+  wait_for_end(fdread, players);
+
+  //send end signal
+  send_end_signal(fdwrite, players);
   
   for(int i = 0; i < players; i++){
     unlink(master_pn[i]);

@@ -75,7 +75,13 @@ void send_init_to_master(int id, int p_master){
   ready[0] = id;
   if(write(p_master, ready, sizeof(*ready)) != sizeof(*ready)){
     fprintf(stderr, "write to file error\n");
-    return;
+  }      
+  return;
+}
+
+void send_end_to_master(POTATO_T * potato, int p_master){
+  if(write(p_master, potato, sizeof(*potato)) != sizeof(*potato)){
+    fprintf(stderr, "write to file error\n");
   }      
 }
 
@@ -106,12 +112,96 @@ int wait_for_start(int id, int master_p, int p_master, int * p_p){
       }
       else{
 	open_player_player_fifo(id, players, p_p);
+	/*
+	for(int i = 0; i < 4; i++){
+	  printf("open %d from player %d", p_p[i], id);
+	}
+	*/
 	printf("Connected as player %d out of %d total players\n", id, players);
 	send_init_to_master(id, p_master);
       }
     }
   }
   return players;
+}
+
+void send_potato_to_next(POTATO_T * potato, int * p_p, int id, int players){
+  srand((unsigned int) time(NULL));
+  int random = rand() % 2;
+  int sendto;
+  int nextid;
+  if(random){
+    sendto = p_p[0];
+    if(id == players-1){
+      nextid = 0;
+    }
+    else{
+      nextid = id + 1;
+    }
+  }
+  else{
+    sendto = p_p[2];
+    if(id == 0){
+      nextid = players - 1;
+    }
+    else{
+      nextid = id - 1;
+    }
+  }
+  if(write(sendto, potato, sizeof(*potato)) != sizeof(*potato)){
+    fprintf(stderr, "write to file error\n");
+  }
+  printf("Sending potato to %d\n", nextid);
+  return;
+}
+
+void pass_potato(int id, int master_p, int p_master, int * p_p, int players){
+  fd_set rfds;
+  int retval;
+  int rdfifo[3] = {master_p, p_p[1], p_p[3]};
+  int max = maxfd(p_p[1], p_p[3]);
+  POTATO_T * potato;
+  POTATO_T p;
+  potato = &p;
+  int pass = 1;
+  do{
+    FD_ZERO(&rfds);
+    FD_SET(master_p, &rfds);
+    FD_SET(p_p[1], &rfds);
+    FD_SET(p_p[3], &rfds);
+    retval = select(max+1, &rfds, NULL, NULL, NULL);
+    if(retval == -1){
+      perror("select()");
+    }
+    else if(retval){
+      for(int i = 0; i < 3; i++){
+	if(FD_ISSET(rdfifo[i], &rfds)){
+	  if(read(rdfifo[i], potato, sizeof(*potato)) == sizeof(*potato)){
+	    //printf("total_hops = %d\n", potato->total_hops);
+	    //printf("hops_count = %d\n", potato->hop_count);
+	    if(potato->msg_type){
+	      pass = 0;
+	    }
+	    else{
+	      //	      printf("id = %d\n", id);
+	      potato->hop_trace[potato->hop_count] = id;
+	      potato->hop_count++;
+	      if(potato->hop_count == potato->total_hops){
+		//pass = 0;
+		printf("I'm it\n");
+		send_end_to_master(potato, p_master);
+	      }
+	      else{
+		send_potato_to_next(potato, p_p, id, players);
+	      }
+	    }
+	  }
+	}	
+      }
+    }
+  }while(pass);
+   
+  printf("%d stop\n", id);
 }
 
 int main(int argc, char *argv[]){
@@ -121,15 +211,19 @@ int main(int argc, char *argv[]){
     return EXIT_FAILURE;
   }
   int id = atoi(argv[1]);
-  
-  //int pp_fifo = 0;
-  
+
+  //open fifos and store fds
   int master_p = open_master_player_fifo(id);
   int p_master = open_player_master_fifo(id);
   int * p_p = malloc(4 * sizeof(*p_p));
-  
-  
+
+  //wait for the start signal and send ready signal to master
   int players = wait_for_start(id, master_p, p_master, p_p);
+
+
+  //wait for potato
+  pass_potato(id, master_p, p_master, p_p, players);
+  /*
   fd_set rfds;
   int retval;
 
@@ -167,7 +261,7 @@ int main(int argc, char *argv[]){
   }while(pass);
    
   printf("%d stop\n", id);
-  
+  */
   return EXIT_SUCCESS;
 
 }
