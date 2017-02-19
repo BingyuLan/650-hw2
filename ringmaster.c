@@ -60,7 +60,7 @@ void create_players_to_players_fifo(int players, char ** pn_pn){
       pn_pn[count] = malloc(30 * sizeof(*pn_pn[count]));
       strcpy(pn_pn[count], path);
       count++;
-      if(mkfifo(path, S_IRUSR | S_IWUSR) != 0){
+      if(mkfifo(path, S_IRWXG | S_IRWXU | S_IRWXO) != 0){
 	perror("mkfifo() error");
       }
       a = i+1;
@@ -83,7 +83,8 @@ int main(int argc, char *argv[]){
     fprintf(stderr, "number_of_players > 1, 0 <= number_of_hops <= 512\n");
     return EXIT_FAILURE;
   }
-
+  printf("Potato Ringmaster\nPlayers = %d\nHops = %d\n", players, hops);
+  
   char ** master_pn = malloc((players) * sizeof(*master_pn));
   char ** pn_master = malloc((players) * sizeof(*pn_master));
   char ** pn_pn = malloc((2 * players) * sizeof(*pn_pn));
@@ -91,13 +92,10 @@ int main(int argc, char *argv[]){
   create_master_to_players_fifo(players, master_pn, pn_master);
   create_players_to_players_fifo(players, pn_pn);
 
-  for(int i = 0; i < 2*players; i++){
-    printf("%s\n", pn_pn[i]);
-  }
-
   //open fifo
   int fdwrite[players];
   int fdread[players];
+  
   for(int i = 0; i < players; i++){
     fdwrite[i] = open(master_pn[i], O_WRONLY);
     fdread[i] = open(pn_master[i], O_RDONLY);
@@ -117,7 +115,45 @@ int main(int argc, char *argv[]){
     fdread[i] = open(path2, O_RDONLY);
   }
   */
+  
+  int * playerpointer = & players;
+  for(int i = 0; i < players; i++){
+    if(write(fdwrite[i], playerpointer, sizeof(*playerpointer)) != sizeof(*playerpointer)){
+      fprintf(stderr, "write to file error\n");
+      return EXIT_FAILURE;
+    }      
+  }
 
+  int ready[1];
+  int retval;
+  int count = 0;
+  do{
+  fd_set rfds;
+  FD_ZERO(&rfds);
+  for(int i = 0; i < players; i++){
+    FD_SET(fdread[i], &rfds);
+  }
+  //  int retval;
+  retval = select(fdread[players-1]+1, &rfds, NULL, NULL, NULL);
+  if(retval == -1){
+    perror("select()");
+  }
+  else if(retval){
+    for(int i = 0; i < players; i++){
+      if(FD_ISSET(fdread[i], &rfds)){
+	if(read(fdread[i], ready, sizeof(*ready)) == sizeof(*ready)){
+	  printf("Player %d is ready to play\n", ready[0]);
+	  count++;
+	}
+      }
+    }
+  }
+  if(count == players){
+    break;
+  }
+  }while(retval);
+  
+  /*  
   POTATO_T * potato;
   POTATO_T p;
   potato = &p;
@@ -136,7 +172,7 @@ int main(int argc, char *argv[]){
   else{
     printf("pass potato success\n");
   }
-  
+  */
   for(int i = 0; i < players; i++){
     unlink(master_pn[i]);
     unlink(pn_master[i]);
@@ -144,7 +180,7 @@ int main(int argc, char *argv[]){
   for(int i = 0; i < 2*players; i++){
     unlink(pn_pn[i]);
   }
-
+  
   
   return EXIT_SUCCESS;
   
