@@ -203,12 +203,14 @@ int main(int argc, char *argv[]){
   
   //wait for players to be ready
   wait_for_ready_signal(players, fdread);
+
+  if(hops){
+    //send out potato
+    send_first_potato(players, fdwrite, hops);
   
-  //send out potato
-  send_first_potato(players, fdwrite, hops);
-  
-  //wait for end
-  wait_for_end(fdread, players);
+    //wait for end
+    wait_for_end(fdread, players);
+  }
 
   //send end signal
   send_end_signal(fdwrite, players);

@@ -117,7 +117,7 @@ int wait_for_start(int id, int master_p, int p_master, int * p_p){
 }
 
 void send_potato_to_next(POTATO_T * potato, int * p_p, int id, int players){
-  srand((unsigned int) time(NULL));
+  //  srand((unsigned int) time(NULL));
   int random = rand() % 2;
   int sendto;
   int nextid;
@@ -197,6 +197,7 @@ void pass_potato(int id, int master_p, int p_master, int * p_p, int players){
 
 int main(int argc, char *argv[]){
   //  exit(0);
+
   if(argc != 2){
     fprintf(stderr, "player <player_id>\n");
     return EXIT_FAILURE;
@@ -211,7 +212,7 @@ int main(int argc, char *argv[]){
   //wait for the start signal and send ready signal to master
   int players = wait_for_start(id, master_p, p_master, p_p);
 
-
+  srand((unsigned int) time(NULL)+10*id);
   //wait for potato and pass it to next
   pass_potato(id, master_p, p_master, p_p, players);
 
