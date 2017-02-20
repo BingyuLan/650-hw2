@@ -11,21 +11,17 @@
 #include "potato.h"
 
 int open_master_player_fifo(int id){
-  char name[20];
-  snprintf(name, sizeof(name), "master_p%d", id);
-  char path[30] = "/tmp/";
-  strcat(path, name);
+  char path[30];
+  snprintf(path, sizeof(path), "/tmp/master_p%d", id);
   int master_p = open(path, O_RDONLY);
   //add error checking
   return master_p;
 }
 
 int open_player_master_fifo(int id){
-  char name[20];
-  snprintf(name, sizeof(name), "p%d_master", id);
-  char path2[30] = "/tmp/";
-  strcat(path2, name);
-  int p_master = open(path2, O_WRONLY);
+  char path[30];
+  snprintf(path, sizeof(path), "/tmp/p%d_master", id);
+  int p_master = open(path, O_WRONLY);
   return p_master;
 }
 
@@ -112,11 +108,6 @@ int wait_for_start(int id, int master_p, int p_master, int * p_p){
       }
       else{
 	open_player_player_fifo(id, players, p_p);
-	/*
-	for(int i = 0; i < 4; i++){
-	  printf("open %d from player %d", p_p[i], id);
-	}
-	*/
 	printf("Connected as player %d out of %d total players\n", id, players);
 	send_init_to_master(id, p_master);
       }
@@ -221,47 +212,9 @@ int main(int argc, char *argv[]){
   int players = wait_for_start(id, master_p, p_master, p_p);
 
 
-  //wait for potato
+  //wait for potato and pass it to next
   pass_potato(id, master_p, p_master, p_p, players);
-  /*
-  fd_set rfds;
-  int retval;
 
-  int rdfifo[3] = {master_p, p_p[1], p_p[3]};
-  int max = maxfd(p_p[1], p_p[3]);
-  POTATO_T * potato;
-  POTATO_T p;
-  potato = &p;
-  int pass = 1;
-  do{
-    FD_ZERO(&rfds);
-    FD_SET(master_p, &rfds);
-    FD_SET(p_p[1], &rfds);
-    FD_SET(p_p[3], &rfds);
-    retval = select(max+1, &rfds, NULL, NULL, NULL);
-    if(retval == -1){
-      perror("select()");
-    }
-    else if(retval){
-      for(int i = 0; i < 3; i++){
-	if(FD_ISSET(rdfifo[i], &rfds)){
-	  if(read(rdfifo[i], potato, sizeof(*potato)) == sizeof(*potato)){
-	    //printf("total_hops = %d\n", potato->total_hops);
-	    //printf("hops_count = %d\n", potato->hop_count);
-	    printf("id = %d\n", id);
-	    potato->hop_trace[potato->hop_count] = id;
-	    potato->hop_count++;
-	    if(potato->hop_count == potato->total_hops){
-	      pass = 0;
-	    }
-	  }
-	}	
-      }
-    }
-  }while(pass);
-   
-  printf("%d stop\n", id);
-  */
   return EXIT_SUCCESS;
 
 }
