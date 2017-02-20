@@ -200,8 +200,8 @@ void pass_potato(int id, int master_p, int p_master, int * p_p, int players){
       }
     }
   }while(pass);
-   
-  printf("%d stop\n", id);
+  return;
+  //  printf("%d stop\n", id);
 }
 
 int main(int argc, char *argv[]){

@@ -46,6 +46,9 @@ void create_players_to_players_fifo(int players, char ** pn_pn){
   for(int i = 0; i < players; i++){
     int a = i-1;
     for(int j = 0; j < 2; j++){
+      if(j == 1 && players == 2){
+	break;
+      }
       if(a < 0){
 	a = players - 1;
       }
@@ -66,7 +69,7 @@ void create_players_to_players_fifo(int players, char ** pn_pn){
       a = i+1;
     }
   }
-
+  return;
 }
 
 void wait_for_end(int * fdread, int players){
@@ -90,9 +93,10 @@ void wait_for_end(int * fdread, int players){
 	if(FD_ISSET(fdread[i], &rfds)){
 	  if(read(fdread[i], potato, sizeof(*potato)) == sizeof(*potato)){
 	    printf("Trace of potato:\n");
-	    for(int i = 0; i < potato->total_hops; i++){
-	      printf("%lu,\n", potato->hop_trace[i]);
+	    for(int i = 0; i < potato->total_hops-1; i++){
+	      printf("%lu,", potato->hop_trace[i]);
 	    }
+	    printf("%lu\n", potato->hop_trace[potato->total_hops-1]);
 	    loop = 0;
 	  }
 	}
@@ -196,22 +200,20 @@ int main(int argc, char *argv[]){
 
   srand((unsigned int) time(NULL));
   int random = rand() % players;
-  printf("first_potato_to : %d\n", random);
+  printf("All players present, sending potato to player %d\n", random);
   
   if(write(fdwrite[random], potato, sizeof(*potato)) != sizeof(*potato)){
     fprintf(stderr, "write to file error\n");
     return EXIT_FAILURE;
   }      
-  else{
-    printf("pass potato success\n");
-  }
 
   //wait for end
   wait_for_end(fdread, players);
 
   //send end signal
   send_end_signal(fdwrite, players);
-  
+
+  //delete fifo
   for(int i = 0; i < players; i++){
     unlink(master_pn[i]);
     unlink(pn_master[i]);
