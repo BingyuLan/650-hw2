@@ -161,6 +161,15 @@ void send_first_potato(int players, int * fdwrite, int hops){
   return;
 }
 
+/*
+void close_fifo(int * fdread, int * fdwrite, int players){
+  for(int i = 0; i < players; i++){
+    close(fdread[i]);
+    close(fdwrite[i]);
+  }
+  return;
+}
+*/
 int main(int argc, char *argv[]){
   //validate command line arguments
   if(argc != 3){
@@ -215,6 +224,9 @@ int main(int argc, char *argv[]){
   //send end signal
   send_end_signal(fdwrite, players);
 
+  //close fifo
+  // close_fifo(fdread, fdwrite, players);
+      
   //delete fifo
   for(int i = 0; i < players; i++){
     unlink(master_pn[i]);
@@ -223,7 +235,18 @@ int main(int argc, char *argv[]){
   for(int i = 0; i < 2*players; i++){
     unlink(pn_pn[i]);
   }
-  
+
+  for(int i = 0; i < players; i++){
+    free(master_pn[i]);
+    free(pn_master[i]);
+  }
+  free(master_pn);
+  free(pn_master);
+  for(int i = 0; i < 2*players; i++){
+    free(pn_pn[i]);
+  }
+  free(pn_pn);
+
   
   return EXIT_SUCCESS;
   

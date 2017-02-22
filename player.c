@@ -13,7 +13,11 @@
 int open_master_player_fifo(int id){
   char path[30];
   snprintf(path, sizeof(path), "/tmp/master_p%d", id);
-  int master_p = open(path, O_RDONLY);
+  int master_p;
+  if((master_p = open(path, O_RDONLY)) == -1){
+    perror("open()");
+    exit(EXIT_FAILURE);
+  }
   //add error checking
   return master_p;
 }
@@ -21,7 +25,11 @@ int open_master_player_fifo(int id){
 int open_player_master_fifo(int id){
   char path[30];
   snprintf(path, sizeof(path), "/tmp/p%d_master", id);
-  int p_master = open(path, O_WRONLY);
+  int p_master;
+  if((p_master = open(path, O_WRONLY)) == -1){
+    perror("open()");
+    exit(EXIT_FAILURE);
+  }
   return p_master;
 }
 
@@ -32,11 +40,13 @@ int open_leftright_player(int a, int b, int w_r){
   if(w_r == 0){
     if((p_p = open(path, O_WRONLY)) == -1){
       perror("open()");
+      exit(EXIT_FAILURE);
     }
   }
   else{
     if((p_p = open(path, O_RDONLY)) == -1){
       perror("open()");
+      exit(EXIT_FAILURE);
     }
   }
   return p_p;
@@ -195,6 +205,15 @@ void pass_potato(int id, int master_p, int p_master, int * p_p, int players){
   //  printf("%d stop\n", id);
 }
 
+void close_fifo(int master_p, int p_master, int * p_p){
+  close(master_p);
+  close(p_master);
+  for(int i = 0; i < 3; i++){
+    close(p_p[i]);
+  }
+  return;
+}
+
 int main(int argc, char *argv[]){
   //  exit(0);
 
@@ -216,6 +235,9 @@ int main(int argc, char *argv[]){
   //wait for potato and pass it to next
   pass_potato(id, master_p, p_master, p_p, players);
 
+  close_fifo(master_p, p_master, p_p);
+  free(p_p);
+  
   return EXIT_SUCCESS;
 
 }
