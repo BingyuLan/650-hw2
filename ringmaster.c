@@ -1,3 +1,5 @@
+//ECE650 hw2 Bingyu Lan
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <errno.h>
@@ -20,7 +22,7 @@ void create_master_to_players_fifo(int players, char ** master_pn, char ** pn_ma
     //make a fifo
     if(mkfifo(path, S_IRUSR | S_IWUSR) != 0){
       perror("mkfifo() error");
-    }
+    } 
     //printf("%s\n", name);
   }
   for(int i = 0; i < players; i++){
@@ -105,7 +107,7 @@ void send_end_signal(int * fdwrite, int players){
   for(int i = 0; i < players; i++){
     if(write(fdwrite[i], potato, sizeof(*potato)) != sizeof(*potato)){
       fprintf(stderr, "write to file error\n");
-    }      
+    }
   }
   return;
 }
@@ -161,7 +163,7 @@ void send_first_potato(int players, int * fdwrite, int hops){
   return;
 }
 
-/*
+
 void close_fifo(int * fdread, int * fdwrite, int players){
   for(int i = 0; i < players; i++){
     close(fdread[i]);
@@ -169,11 +171,11 @@ void close_fifo(int * fdread, int * fdwrite, int players){
   }
   return;
 }
-*/
+
 int main(int argc, char *argv[]){
   //validate command line arguments
   if(argc != 3){
-    fprintf(stderr, "ringmaster <number_of_players> <number_of_hops>\n");
+    fprintf(stderr, "Usage: ringmaster <number_of_players> <number_of_hops>\n");
     return EXIT_FAILURE;
   }
   int players = atoi(argv[1]);
@@ -223,19 +225,25 @@ int main(int argc, char *argv[]){
 
   //send end signal
   send_end_signal(fdwrite, players);
-
+  //send_end_signal(fdwrite, players);
   //close fifo
-  // close_fifo(fdread, fdwrite, players);
+  close_fifo(fdread, fdwrite, players);
       
   //delete fifo
+  
   for(int i = 0; i < players; i++){
-    unlink(master_pn[i]);
-    unlink(pn_master[i]);
+    if(unlink(master_pn[i]) != 0){
+      perror("unlink()");
+    }
+    if(unlink(pn_master[i]) != 0){
+      perror("unlink()");
+    }
   }
   for(int i = 0; i < 2*players; i++){
     unlink(pn_pn[i]);
   }
-
+  
+  // printf("unlink fifo\n");
   for(int i = 0; i < players; i++){
     free(master_pn[i]);
     free(pn_master[i]);
@@ -246,8 +254,6 @@ int main(int argc, char *argv[]){
     free(pn_pn[i]);
   }
   free(pn_pn);
-
-  
   return EXIT_SUCCESS;
   
 }

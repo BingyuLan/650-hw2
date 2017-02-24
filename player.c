@@ -1,3 +1,5 @@
+//ECE650 hw2 Bingyu Lan
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <errno.h>
@@ -170,7 +172,10 @@ void pass_potato(int id, int master_p, int p_master, int * p_p, int players){
     FD_SET(master_p, &rfds);
     FD_SET(p_p[1], &rfds);
     FD_SET(p_p[3], &rfds);
-    retval = select(max+1, &rfds, NULL, NULL, NULL);
+    struct timeval tv;
+    tv.tv_sec = 1;
+    tv.tv_usec = 0;
+    retval = select(max+1, &rfds, NULL, NULL, &tv);
     if(retval == -1){
       perror("select()");
     }
@@ -178,27 +183,28 @@ void pass_potato(int id, int master_p, int p_master, int * p_p, int players){
       for(int i = 0; i < 3; i++){
 	if(FD_ISSET(rdfifo[i], &rfds)){
 	  if(read(rdfifo[i], potato, sizeof(*potato)) == sizeof(*potato)){
-	    //printf("total_hops = %d\n", potato->total_hops);
-	    //printf("hops_count = %d\n", potato->hop_count);
 	    if(potato->msg_type){
 	      pass = 0;
+	      break;
 	    }
 	    else{
-	      //	      printf("id = %d\n", id);
 	      potato->hop_trace[potato->hop_count] = id;
 	      potato->hop_count++;
 	      if(potato->hop_count == potato->total_hops){
-		//pass = 0;
 		printf("I'm it\n");
 		send_end_to_master(potato, p_master);
 	      }
 	      else{
 		send_potato_to_next(potato, p_p, id, players);
+		break;
 	      }
 	    }
 	  }
 	}	
       }
+    }
+    else{
+      pass = 0;
     }
   }while(pass);
   return;
@@ -234,8 +240,7 @@ int main(int argc, char *argv[]){
   srand((unsigned int) time(NULL)+10*id);
   //wait for potato and pass it to next
   pass_potato(id, master_p, p_master, p_p, players);
-
-  close_fifo(master_p, p_master, p_p);
+  // close_fifo(master_p, p_master, p_p);
   free(p_p);
   
   return EXIT_SUCCESS;
